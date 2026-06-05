@@ -11,6 +11,7 @@ import carwash_auth_service.request.RegisterRequest;
 import carwash_auth_service.request.VerifyOtpRequest;
 import carwash_auth_service.response.ApiResponse;
 import carwash_auth_service.response.LoginResponse;
+import carwash_auth_service.response.UserProfileResponse;
 import carwash_auth_service.security.JwtService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,8 +45,7 @@ public class AuthService {
         if (userRepository.findByEmail(
                 request.getEmail()).isPresent()) {
 
-            throw new BusinessException(
-                    "Email already registered");
+            throw new BusinessException("Email already registered");
         }
 
         User user = User.builder()
@@ -65,11 +65,9 @@ public class AuthService {
                 otpService.generateOtp(
                         request.getEmail());
 
-        System.out.println(
-                "Generated OTP = " + otp);
+        System.out.println("Generated OTP = " + otp);
 
-        return new ApiResponse(
-                "User Registered Successfully");
+        return new ApiResponse("User Registered Successfully");
     }
     public ApiResponse verifyOtp(
             VerifyOtpRequest request) {
@@ -79,28 +77,24 @@ public class AuthService {
                         .findTopByEmailOrderByIdDesc(
                                 request.getEmail())
                         .orElseThrow(() ->
-                                new BusinessException(
-                                        "OTP Not Found"));
+                                new BusinessException("OTP Not Found"));
 
         if (otpVerification.isVerified()) {
 
-            throw new BusinessException(
-                    "OTP Already Used");
+            throw new BusinessException("OTP Already Used");
         }
 
         if (!otpVerification.getOtp()
                 .equals(request.getOtp())) {
 
-            throw new BusinessException(
-                    "Invalid OTP");
+            throw new BusinessException("Invalid OTP");
         }
 
         if (LocalDateTime.now()
                 .isAfter(
                         otpVerification.getExpiryTime())) {
 
-            throw new BusinessException(
-                    "OTP Expired");
+            throw new BusinessException("OTP Expired");
         }
 
         User user =
@@ -108,8 +102,7 @@ public class AuthService {
                         .findByEmail(
                                 request.getEmail())
                         .orElseThrow(() ->
-                                new BusinessException(
-                                        "User Not Found"));
+                                new BusinessException("User Not Found"));
 
         user.setStatus(UserStatus.ACTIVE);
 
@@ -119,8 +112,7 @@ public class AuthService {
 
         otpRepository.save(otpVerification);
 
-        return new ApiResponse(
-                "OTP Verified Successfully");
+        return new ApiResponse("OTP Verified Successfully");
     }
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
@@ -137,5 +129,26 @@ public class AuthService {
                 user.getEmail(),user.getRole().name());
 
         return new LoginResponse(token, user.getRole().name(),"Login Successfully");
+    }
+
+    public UserProfileResponse getCurrentUser(){
+        String email =
+                org.springframework.security.core
+                        .context.SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()->new  BusinessException("User not found"));
+
+        return new UserProfileResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getRole().name(),
+                user.getStatus().name()
+        );
     }
 }
